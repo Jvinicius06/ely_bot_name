@@ -1,0 +1,19 @@
+{
+  "name": "fivem-discord-nickname-sync",
+  "version": "1.0.0",
+  "description": "Servidor HTTP para sincronizar nicknames de players do FiveM com Discord",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["fivem", "discord", "bot", "nodejs"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  }
+}
