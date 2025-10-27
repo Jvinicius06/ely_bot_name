@@ -110,14 +110,15 @@ app.post('/api/update-nickname', authenticateRequest, async (req, res) => {
     const MAX_LENGTH = 32;
 
     // Formato otimizado: [fixedID][charID] Nome
-    if (character_fixed_id && character_id) {
-      const prefix = `${character_fixed_id}[${character_id}] `;
-      const maxNameLength = MAX_LENGTH - prefix.length;
-      const truncatedName = character_name.length > maxNameLength
-        ? character_name.substring(0, maxNameLength)
-        : character_name;
-      newNickname = `${prefix}${truncatedName}`;
-    } else if (character_fixed_id) {
+    // if (character_fixed_id && character_id) {
+    //   const prefix = `${character_fixed_id}[${character_id}] `;
+    //   const maxNameLength = MAX_LENGTH - prefix.length;
+    //   const truncatedName = character_name.length > maxNameLength
+    //     ? character_name.substring(0, maxNameLength)
+    //     : character_name;
+    //   newNickname = `${prefix}${truncatedName}`;
+    // } else 
+      if (character_fixed_id) {
       const prefix = `${character_fixed_id} `;
       const maxNameLength = MAX_LENGTH - prefix.length;
       const truncatedName = character_name.length > maxNameLength
