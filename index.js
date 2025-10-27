@@ -105,15 +105,40 @@ app.post('/api/update-nickname', authenticateRequest, async (req, res) => {
       });
     }
 
+    // Constrói o nickname com limite de 32 caracteres (limite do Discord)
     let newNickname = character_name;
+    const MAX_LENGTH = 32;
 
-    if (character_id && character_fixed_id) {
-      newNickname = `${character_name} [${character_id}] [${character_fixed_id}]`;
-    } else if (character_id) {
-      newNickname = `${character_name} [${character_id}]`;
+    // Formato otimizado: [fixedID][charID] Nome
+    if (character_fixed_id && character_id) {
+      const prefix = `[${character_fixed_id}][${character_id}] `;
+      const maxNameLength = MAX_LENGTH - prefix.length;
+      const truncatedName = character_name.length > maxNameLength
+        ? character_name.substring(0, maxNameLength)
+        : character_name;
+      newNickname = `${prefix}${truncatedName}`;
     } else if (character_fixed_id) {
-      newNickname = `${character_name} [${character_fixed_id}]`;
+      const prefix = `[${character_fixed_id}] `;
+      const maxNameLength = MAX_LENGTH - prefix.length;
+      const truncatedName = character_name.length > maxNameLength
+        ? character_name.substring(0, maxNameLength)
+        : character_name;
+      newNickname = `${prefix}${truncatedName}`;
+    } else if (character_id) {
+      const prefix = `[${character_id}] `;
+      const maxNameLength = MAX_LENGTH - prefix.length;
+      const truncatedName = character_name.length > maxNameLength
+        ? character_name.substring(0, maxNameLength)
+        : character_name;
+      newNickname = `${prefix}${truncatedName}`;
+    } else {
+      // Apenas o nome, limitado a 32 caracteres
+      newNickname = character_name.length > MAX_LENGTH
+        ? character_name.substring(0, MAX_LENGTH)
+        : character_name;
     }
+
+    
 
     try {
       await member.edit({ nick: newNickname });

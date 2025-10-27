@@ -8,7 +8,8 @@ Servidor HTTP para sincronizar automaticamente os nicknames dos players do FiveM
 - Atualiza automaticamente o nickname do player no Discord
 - Autenticação por token secreto para segurança
 - Ignora erros de permissão (quando o player tem cargo acima do bot)
-- Suporta ID do personagem no formato `Nome [ID]`
+- Suporta ID do personagem no formato otimizado `[ID] Nome`
+- Limite de 32 caracteres (limite do Discord) com truncamento automático
 
 ## Requisitos
 
@@ -102,10 +103,12 @@ Content-Type: application/json
   "data": {
     "discord_id": "123456789012345678",
     "discord_username": "joao",
-    "new_nickname": "João Silva [1001] [42]"
+    "new_nickname": "[42][1001] João Silva"
   }
 }
 ```
+
+**Nota:** O nickname é limitado a 32 caracteres. Se o nome completo com IDs ultrapassar esse limite, o nome do personagem será truncado automaticamente.
 
 **Resposta quando não há permissão (200):**
 ```json
