@@ -2,7 +2,7 @@
 -- Coloque este código no seu resource do FiveM
 
 -- Configurações
-local API_URL = 'http://SEU_SERVIDOR:3000/api/update-nickname'
+local API_URL = 'http://SEU_SERVIDOR:3000'
 local API_SECRET = 'SEU_API_SECRET_AQUI'
 
 -- Função para atualizar o nickname no Discord
@@ -32,7 +32,7 @@ function UpdateDiscordNickname(source, characterName, characterId, characterFixe
     }
 
     -- Faz a requisição HTTP
-    PerformHttpRequest(API_URL, function(statusCode, response, headers)
+    PerformHttpRequest(API_URL .. '/api/update-nickname', function(statusCode, response, headers)
         if statusCode == 200 then
             local result = json.decode(response)
             if result.success then
@@ -46,6 +46,62 @@ function UpdateDiscordNickname(source, characterName, characterId, characterFixe
             end
         else
             print('[Discord Sync] Erro HTTP: ' .. statusCode)
+        end
+    end, 'POST', json.encode(data), {
+        ['Content-Type'] = 'application/json',
+        ['Authorization'] = 'Bearer ' .. API_SECRET
+    })
+end
+
+-- Função para verificar se o player tem um cargo específico
+function CheckDiscordRole(source, roleId, roleName, callback)
+    local discordId = nil
+
+    -- Pega o Discord ID do player
+    for _, id in ipairs(GetPlayerIdentifiers(source)) do
+        if string.match(id, 'discord:') then
+            discordId = string.gsub(id, 'discord:', '')
+            break
+        end
+    end
+
+    -- Verifica se encontrou o Discord ID
+    if not discordId then
+        print('[Discord Sync] Player ' .. GetPlayerName(source) .. ' não tem Discord vinculado')
+        if callback then callback(false, nil) end
+        return
+    end
+
+    -- Prepara os dados
+    local data = {
+        discord_id = discordId
+    }
+
+    if roleId then
+        data.role_id = tostring(roleId)
+    elseif roleName then
+        data.role_name = roleName
+    else
+        print('[Discord Sync] Erro: role_id ou role_name não fornecido')
+        if callback then callback(false, nil) end
+        return
+    end
+
+    -- Faz a requisição HTTP
+    PerformHttpRequest(API_URL .. '/api/check-role', function(statusCode, response, headers)
+        if statusCode == 200 then
+            local result = json.decode(response)
+            if result.success then
+                local hasRole = result.data.has_role
+                print('[Discord Sync] Player ' .. GetPlayerName(source) .. ' tem o cargo: ' .. tostring(hasRole))
+                if callback then callback(hasRole, result.data) end
+            else
+                print('[Discord Sync] Erro: ' .. (result.error or 'Desconhecido'))
+                if callback then callback(false, nil) end
+            end
+        else
+            print('[Discord Sync] Erro HTTP: ' .. statusCode)
+            if callback then callback(false, nil) end
         end
     end, 'POST', json.encode(data), {
         ['Content-Type'] = 'application/json',
@@ -102,5 +158,49 @@ AddEventHandler('discord:updateNickname', function(characterName, characterId, c
     local source = source
     UpdateDiscordNickname(source, characterName, characterId, characterFixedId)
 end)
+
+-- Exemplo 5: Verificar cargo antes de permitir entrada no servidor
+AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
+    local source = source
+    deferrals.defer()
+
+    Wait(50)
+    deferrals.update('Verificando cargo no Discord...')
+
+    -- Verifica se o player tem o cargo "Membro VIP" (pode ser por nome ou ID)
+    CheckDiscordRole(source, nil, 'Membro VIP', function(hasRole, data)
+        if hasRole then
+            deferrals.done()
+            print('[Discord Sync] Player ' .. name .. ' tem o cargo necessário!')
+        else
+            deferrals.done('Você precisa ter o cargo "Membro VIP" no Discord para entrar no servidor!')
+            print('[Discord Sync] Player ' .. name .. ' não tem o cargo necessário!')
+        end
+    end)
+end)
+
+-- Exemplo 6: Comando para verificar cargo manualmente
+RegisterCommand('checkrole', function(source, args)
+    local roleName = table.concat(args, ' ')
+
+    if roleName == '' then
+        TriggerClientEvent('chat:addMessage', source, {
+            args = { 'Discord Sync', 'Uso: /checkrole [nome do cargo]' }
+        })
+        return
+    end
+
+    CheckDiscordRole(source, nil, roleName, function(hasRole, data)
+        if hasRole then
+            TriggerClientEvent('chat:addMessage', source, {
+                args = { 'Discord Sync', 'Você TEM o cargo: ' .. roleName }
+            })
+        else
+            TriggerClientEvent('chat:addMessage', source, {
+                args = { 'Discord Sync', 'Você NÃO TEM o cargo: ' .. roleName }
+            })
+        end
+    end)
+end, false)
 
 print('^2[Discord Sync] ^7Integração carregada com sucesso!^0')

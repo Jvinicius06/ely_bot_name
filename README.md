@@ -6,10 +6,12 @@ Servidor HTTP para sincronizar automaticamente os nicknames dos players do FiveM
 
 - Servidor HTTP que recebe requisições do servidor FiveM
 - Atualiza automaticamente o nickname do player no Discord
+- Verifica se um player possui cargo específico (whitelist/permissões)
 - Autenticação por token secreto para segurança
 - Ignora erros de permissão (quando o player tem cargo acima do bot)
 - Suporta ID do personagem no formato otimizado `[ID] Nome`
 - Limite de 32 caracteres (limite do Discord) com truncamento automático
+- Retorna lista de todos os cargos do usuário
 
 ## Requisitos
 
@@ -124,6 +126,86 @@ Content-Type: application/json
 }
 ```
 
+### POST /api/check-role
+
+Verifica se um membro possui um cargo específico no Discord.
+
+**Headers:**
+```
+Authorization: Bearer SEU_API_SECRET
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "discord_id": "123456789012345678",
+  "role_id": "987654321098765432"
+}
+```
+
+ou
+
+```json
+{
+  "discord_id": "123456789012345678",
+  "role_name": "Membro VIP"
+}
+```
+
+**Parâmetros:**
+- `discord_id` (string, obrigatório): ID do Discord do player
+- `role_id` (string, opcional): ID do cargo no Discord
+- `role_name` (string, opcional): Nome do cargo (case insensitive)
+
+**Nota:** Você deve informar `role_id` OU `role_name`.
+
+**Resposta quando tem o cargo (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "discord_id": "123456789012345678",
+    "discord_username": "joao",
+    "has_role": true,
+    "role": {
+      "id": "987654321098765432",
+      "name": "Membro VIP",
+      "color": "#3498db"
+    },
+    "all_roles": [
+      {
+        "id": "987654321098765432",
+        "name": "Membro VIP"
+      },
+      {
+        "id": "123456789012345678",
+        "name": "Player"
+      }
+    ]
+  }
+}
+```
+
+**Resposta quando NÃO tem o cargo (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "discord_id": "123456789012345678",
+    "discord_username": "joao",
+    "has_role": false,
+    "role": null,
+    "all_roles": [
+      {
+        "id": "123456789012345678",
+        "name": "Player"
+      }
+    ]
+  }
+}
+```
+
 ### GET /api/health
 
 Verifica o status do servidor e do bot.
@@ -139,6 +221,8 @@ Verifica o status do servidor e do bot.
 ```
 
 ## Integração com FiveM
+
+### Atualizar Nickname
 
 No seu servidor FiveM, faça uma requisição HTTP quando o player conectar:
 
@@ -163,6 +247,54 @@ AddEventHandler('playerConnected', function(discordId, charName, charId, charFix
     })
 end)
 ```
+
+### Verificar Cargo (Whitelist)
+
+Para verificar se um player tem um cargo específico antes de permitir entrada:
+
+```lua
+AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
+    local source = source
+    deferrals.defer()
+    deferrals.update('Verificando cargo no Discord...')
+
+    -- Pega o Discord ID
+    local discordId = nil
+    for _, id in ipairs(GetPlayerIdentifiers(source)) do
+        if string.match(id, 'discord:') then
+            discordId = string.gsub(id, 'discord:', '')
+            break
+        end
+    end
+
+    if not discordId then
+        deferrals.done('Discord não vinculado!')
+        return
+    end
+
+    -- Verifica se tem o cargo
+    PerformHttpRequest('http://SEU_SERVIDOR:3000/api/check-role', function(statusCode, response)
+        if statusCode == 200 then
+            local result = json.decode(response)
+            if result.success and result.data.has_role then
+                deferrals.done()
+            else
+                deferrals.done('Você precisa ter o cargo "Membro VIP" no Discord!')
+            end
+        else
+            deferrals.done('Erro ao verificar cargo!')
+        end
+    end, 'POST', json.encode({
+        discord_id = discordId,
+        role_name = 'Membro VIP'
+    }), {
+        ['Content-Type'] = 'application/json',
+        ['Authorization'] = 'Bearer SEU_API_SECRET'
+    })
+end)
+```
+
+**Nota:** Veja o arquivo `fivem-example.lua` para exemplos completos e prontos para uso.
 
 ## Permissões do Bot no Discord
 

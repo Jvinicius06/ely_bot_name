@@ -183,6 +183,101 @@ app.post('/api/update-nickname', authenticateRequest, async (req, res) => {
   }
 });
 
+app.post('/api/check-role', authenticateRequest, async (req, res) => {
+  try {
+    if (!isDiscordReady) {
+      return res.status(503).json({
+        success: false,
+        error: 'Bot do Discord ainda não está pronto',
+      });
+    }
+
+    let { discord_id, role_id, role_name } = req.body;
+
+    // Converte números para strings
+    if (typeof discord_id === 'number') discord_id = String(discord_id);
+    if (typeof role_id === 'number') role_id = String(role_id);
+
+    if (!discord_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parâmetro obrigatório: discord_id',
+      });
+    }
+
+    if (!role_id && !role_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Informe role_id ou role_name',
+      });
+    }
+
+    const guild = await client.guilds.fetch(GUILD_ID);
+
+    if (!guild) {
+      return res.status(500).json({
+        success: false,
+        error: 'Servidor Discord não encontrado',
+      });
+    }
+
+    const member = await guild.members.fetch(discord_id).catch(() => null);
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        error: 'Membro não encontrado no servidor Discord',
+      });
+    }
+
+    let hasRole = false;
+    let foundRole = null;
+
+    // Verifica por ID do cargo
+    if (role_id) {
+      hasRole = member.roles.cache.has(role_id);
+      if (hasRole) {
+        foundRole = member.roles.cache.get(role_id);
+      }
+    }
+    // Verifica por nome do cargo (case insensitive)
+    else if (role_name) {
+      foundRole = member.roles.cache.find(
+        role => role.name.toLowerCase() === role_name.toLowerCase()
+      );
+      hasRole = !!foundRole;
+    }
+
+    console.log(`🔍 Verificação de cargo: ${member.user.tag} - Cargo: ${role_id || role_name} - Tem: ${hasRole}`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        discord_id: member.id,
+        discord_username: member.user.username,
+        has_role: hasRole,
+        role: foundRole ? {
+          id: foundRole.id,
+          name: foundRole.name,
+          color: foundRole.hexColor,
+        } : null,
+        all_roles: member.roles.cache.map(role => ({
+          id: role.id,
+          name: role.name,
+        })).filter(role => role.name !== '@everyone'),
+      },
+    });
+  } catch (error) {
+    console.error('❌ Erro ao verificar cargo:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno ao verificar cargo',
+      details: error.message,
+    });
+  }
+});
+
 app.get('/api/health', (_req, res) => {
   res.status(200).json({
     success: true,
@@ -204,4 +299,5 @@ app.listen(PORT, () => {
   console.log(`📡 Endpoints disponíveis:`);
   console.log(`   GET  http://localhost:${PORT}/api/health`);
   console.log(`   POST http://localhost:${PORT}/api/update-nickname`);
+  console.log(`   POST http://localhost:${PORT}/api/check-role`);
 });
