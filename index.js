@@ -95,7 +95,7 @@ async function updateAllNicknames(onlyNew = false) {
 
     const query = `
       SELECT 
-        u.discord,
+        REPLACE(u.discord, 'discord:', '') as discord,
         u.username,
         p.name,
         p.cid,
@@ -106,6 +106,7 @@ async function updateAllNicknames(onlyNew = false) {
       LEFT JOIN character_fixed_ids cf ON p.citizenid = cf.citizenid
       WHERE u.discord IS NOT NULL 
         AND u.discord != ''
+        AND u.discord LIKE 'discord:%'
         AND p.name IS NOT NULL
       ORDER BY u.discord, p.id ASC
     `;
