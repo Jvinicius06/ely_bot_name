@@ -97,7 +97,11 @@ async function updateAllNicknames(onlyNew = false) {
       SELECT 
         REPLACE(u.discord, 'discord:', '') as discord,
         u.username,
-        p.name,
+        CONCAT(
+          JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.firstname')), 
+          ' ', 
+          JSON_UNQUOTE(JSON_EXTRACT(p.charinfo, '$.lastname'))
+        ) as name,
         p.cid,
         p.id as player_id,
         CONCAT('EL', cf.id) as fixed_id
@@ -107,7 +111,9 @@ async function updateAllNicknames(onlyNew = false) {
       WHERE u.discord IS NOT NULL 
         AND u.discord != ''
         AND u.discord LIKE 'discord:%'
-        AND p.name IS NOT NULL
+        AND p.charinfo IS NOT NULL
+        AND JSON_EXTRACT(p.charinfo, '$.firstname') IS NOT NULL
+        AND JSON_EXTRACT(p.charinfo, '$.lastname') IS NOT NULL
       ORDER BY u.discord, p.id ASC
     `;
 
