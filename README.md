@@ -39,6 +39,10 @@ PORT=3000
 API_SECRET=seu_secret_super_seguro_aqui
 DISCORD_TOKEN=seu_token_do_bot_discord_aqui
 GUILD_ID=seu_guild_id_aqui
+DB_HOST=localhost
+DB_USER=seu_usuario_mysql
+DB_PASSWORD=sua_senha_mysql
+DB_NAME=nome_do_banco_fivem
 ```
 
 ### Como obter as credenciais:
@@ -123,6 +127,59 @@ Content-Type: application/json
     "skipped": true,
     "reason": "Falta de permissão (cargo acima do bot)"
   }
+}
+```
+
+### POST /api/update-all-nicknames
+
+Atualiza os nicknames de todos os players no Discord baseado no banco de dados do FiveM.
+
+**Headers:**
+```
+Authorization: Bearer SEU_API_SECRET
+Content-Type: application/json
+```
+
+**Body:** Não requer body (apenas cabeçalhos de autenticação)
+
+**Funcionalidade:**
+- Conecta no banco de dados MySQL do FiveM
+- Busca todos os usuários com Discord ID válido
+- Para usuários com múltiplos personagens, seleciona o personagem com menor ID
+- Atualiza o nickname usando o padrão: `[Fixed_ID] Nome` ou `[Character_ID] Nome`
+- Ignora usuários que já possuem o nickname correto
+- Fornece estatísticas detalhadas da operação
+
+**Resposta de sucesso (200):**
+```json
+{
+  "success": true,
+  "message": "Atualização em massa concluída",
+  "stats": {
+    "processed": 150,
+    "updated": 45,
+    "errors": 2,
+    "skipped": 103
+  },
+  "results": [
+    {
+      "discord_id": "123456789012345678",
+      "discord_username": "player1",
+      "old_nickname": "João Silva",
+      "new_nickname": "EL42 João Silva",
+      "character_name": "João Silva",
+      "fixed_id": "EL42",
+      "cid": "1001",
+      "status": "updated"
+    },
+    {
+      "discord_id": "987654321098765432",
+      "discord_username": "player2",
+      "current_nickname": "EL25 Maria Santos",
+      "status": "skipped",
+      "reason": "Nickname já está correto"
+    }
+  ]
 }
 ```
 
@@ -292,6 +349,37 @@ AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
         ['Authorization'] = 'Bearer SEU_API_SECRET'
     })
 end)
+```
+
+### Atualização em Massa de Nicknames
+
+Para atualizar todos os nicknames de uma só vez baseado no banco de dados:
+
+```lua
+-- Comando para administradores
+RegisterCommand('syncallnicks', function(source, args, rawCommand)
+    if not IsPlayerAdmin(source) then return end
+    
+    print('Iniciando sincronização em massa...')
+    
+    PerformHttpRequest('http://SEU_SERVIDOR:3000/api/update-all-nicknames', function(statusCode, response)
+        if statusCode == 200 then
+            local result = json.decode(response)
+            print(string.format('Sincronização concluída! Processados: %d, Atualizados: %d, Erros: %d, Ignorados: %d', 
+                result.stats.processed, 
+                result.stats.updated, 
+                result.stats.errors, 
+                result.stats.skipped
+            ))
+        else
+            print('Erro na sincronização: ' .. statusCode)
+        end
+    end, 'POST', '', {
+        ['Content-Type'] = 'application/json',
+        ['Authorization'] = 'Bearer SEU_API_SECRET'
+    })
+end, true) -- true = comando restrito a admin
+
 ```
 
 **Nota:** Veja o arquivo `fivem-example.lua` para exemplos completos e prontos para uso.

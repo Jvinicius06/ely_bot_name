@@ -203,4 +203,59 @@ RegisterCommand('checkrole', function(source, args)
     end)
 end, false)
 
+-- Exemplo 7: Comando para sincronizar todos os nicknames (ADMIN)
+RegisterCommand('syncallnicks', function(source, args)
+    -- Verificar se é admin (ajuste conforme seu sistema de permissões)
+    if source ~= 0 and not IsPlayerAceAllowed(source, 'command.syncallnicks') then
+        TriggerClientEvent('chat:addMessage', source, {
+            args = { 'Discord Sync', 'Você não tem permissão para usar este comando!' }
+        })
+        return
+    end
+    
+    print('[Discord Sync] Iniciando sincronização em massa de nicknames...')
+    
+    PerformHttpRequest(API_URL .. '/api/update-all-nicknames', function(statusCode, response)
+        if statusCode == 200 then
+            local result = json.decode(response)
+            if result.success then
+                local msg = string.format('Sincronização concluída! Processados: %d, Atualizados: %d, Erros: %d, Ignorados: %d',
+                    result.stats.processed,
+                    result.stats.updated,
+                    result.stats.errors,
+                    result.stats.skipped
+                )
+                print('[Discord Sync] ' .. msg)
+                
+                if source ~= 0 then
+                    TriggerClientEvent('chat:addMessage', source, {
+                        args = { 'Discord Sync', msg }
+                    })
+                end
+            else
+                local errorMsg = 'Erro na sincronização: ' .. (result.error or 'Desconhecido')
+                print('[Discord Sync] ' .. errorMsg)
+                
+                if source ~= 0 then
+                    TriggerClientEvent('chat:addMessage', source, {
+                        args = { 'Discord Sync', errorMsg }
+                    })
+                end
+            end
+        else
+            local errorMsg = 'Erro HTTP na sincronização: ' .. statusCode
+            print('[Discord Sync] ' .. errorMsg)
+            
+            if source ~= 0 then
+                TriggerClientEvent('chat:addMessage', source, {
+                    args = { 'Discord Sync', errorMsg }
+                })
+            end
+        end
+    end, 'POST', '', {
+        ['Content-Type'] = 'application/json',
+        ['Authorization'] = 'Bearer ' .. API_SECRET
+    })
+end, true) -- true = comando restrito
+
 print('^2[Discord Sync] ^7Integração carregada com sucesso!^0')
