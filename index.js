@@ -4,6 +4,20 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Função para formatar a hora atual
+function getFormattedTime() {
+  const now = new Date();
+  return now.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_SECRET = process.env.API_SECRET;
@@ -11,8 +25,8 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 
 if (!API_SECRET || !DISCORD_TOKEN || !GUILD_ID) {
-  console.error('❌ Erro: Variáveis de ambiente faltando!');
-  console.error('Certifique-se de configurar: API_SECRET, DISCORD_TOKEN, GUILD_ID');
+  console.error(`[${getFormattedTime()}] ❌ Erro: Variáveis de ambiente faltando!`);
+  console.error(`[${getFormattedTime()}] Certifique-se de configurar: API_SECRET, DISCORD_TOKEN, GUILD_ID`);
   process.exit(1);
 }
 
@@ -28,16 +42,16 @@ const client = new Client({
 let isDiscordReady = false;
 
 client.once('ready', () => {
-  console.log(`✅ Bot conectado como ${client.user.tag}`);
+  console.log(`[${getFormattedTime()}] ✅ Bot conectado como ${client.user.tag}`);
   isDiscordReady = true;
 });
 
 client.on('error', (error) => {
-  console.error('❌ Erro no cliente Discord:', error);
+  console.error(`[${getFormattedTime()}] ❌ Erro no cliente Discord:`, error);
 });
 
 client.login(DISCORD_TOKEN).catch((error) => {
-  console.error('❌ Erro ao fazer login no Discord:', error);
+  console.error(`[${getFormattedTime()}] ❌ Erro ao fazer login no Discord:`, error);
   process.exit(1);
 });
 
@@ -144,7 +158,7 @@ app.post('/api/update-nickname', authenticateRequest, async (req, res) => {
     try {
       await member.edit({ nick: newNickname });
 
-      console.log(`✅ Nickname atualizado: ${member.user.tag} -> ${newNickname}`);
+      console.log(`[${getFormattedTime()}] ✅ Nickname atualizado: ${member.user.tag} -> ${newNickname}`);
 
       return res.status(200).json({
         success: true,
@@ -157,7 +171,7 @@ app.post('/api/update-nickname', authenticateRequest, async (req, res) => {
       });
     } catch (nicknameError) {
       if (nicknameError.code === 50013) {
-        console.warn(`⚠️  Sem permissão para alterar nickname de: ${member.user.tag}`);
+        console.warn(`[${getFormattedTime()}] ⚠️  Sem permissão para alterar nickname de: ${member.user.tag}`);
 
         return res.status(200).json({
           success: true,
@@ -174,7 +188,7 @@ app.post('/api/update-nickname', authenticateRequest, async (req, res) => {
       throw nicknameError;
     }
   } catch (error) {
-    console.error('❌ Erro ao processar requisição:', error);
+    console.error(`[${getFormattedTime()}] ❌ Erro ao processar requisição:`, error);
 
     return res.status(500).json({
       success: false,
@@ -249,7 +263,7 @@ app.post('/api/check-role', authenticateRequest, async (req, res) => {
       hasRole = !!foundRole;
     }
 
-    console.log(`🔍 Verificação de cargo: ${member.user.tag} - Cargo: ${role_id || role_name} - Tem: ${hasRole}`);
+    console.log(`[${getFormattedTime()}] 🔍 Verificação de cargo: ${member.user.tag} - Cargo: ${role_id || role_name} - Tem: ${hasRole}`);
 
     return res.status(200).json({
       success: true,
@@ -269,7 +283,7 @@ app.post('/api/check-role', authenticateRequest, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('❌ Erro ao verificar cargo:', error);
+    console.error(`[${getFormattedTime()}] ❌ Erro ao verificar cargo:`, error);
 
     return res.status(500).json({
       success: false,
@@ -296,9 +310,9 @@ app.use((_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor HTTP rodando na porta ${PORT}`);
-  console.log(`📡 Endpoints disponíveis:`);
-  console.log(`   GET  http://localhost:${PORT}/api/health`);
-  console.log(`   POST http://localhost:${PORT}/api/update-nickname`);
-  console.log(`   POST http://localhost:${PORT}/api/check-role`);
+  console.log(`[${getFormattedTime()}] 🚀 Servidor HTTP rodando na porta ${PORT}`);
+  console.log(`[${getFormattedTime()}] 📡 Endpoints disponíveis:`);
+  console.log(`[${getFormattedTime()}]    GET  http://localhost:${PORT}/api/health`);
+  console.log(`[${getFormattedTime()}]    POST http://localhost:${PORT}/api/update-nickname`);
+  console.log(`[${getFormattedTime()}]    POST http://localhost:${PORT}/api/check-role`);
 });
