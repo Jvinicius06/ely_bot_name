@@ -56,6 +56,14 @@ const AUTO_UPDATE_INTERVAL = 60 * 60 * 1000; // 1 hora em millisegundos
 const BATCH_SIZE = 3;
 const DELAY_BETWEEN_BATCHES = 1000;
 
+// Retorna true se `candidate` deslogou mais recentemente que `current`.
+// last_logged_out NULL é tratado como o mais antigo possível.
+function loggedOutMoreRecently(candidate, current) {
+  const a = candidate.last_logged_out ? new Date(candidate.last_logged_out).getTime() : 0;
+  const b = current.last_logged_out ? new Date(current.last_logged_out).getTime() : 0;
+  return a > b;
+}
+
 // Função para criar conexão com o banco de dados
 async function createDbConnection() {
   try {
@@ -104,17 +112,19 @@ async function updateAllNicknames(onlyNew = false) {
         ) as name,
         p.cid,
         p.id as player_id,
+        p.last_logged_out,
         CONCAT('EL', cf.id) as fixed_id
       FROM users u
       LEFT JOIN players p ON u.userId = p.userId
       LEFT JOIN character_fixed_ids cf ON p.citizenid = cf.citizenid
-      WHERE u.discord IS NOT NULL 
+      WHERE u.discord IS NOT NULL
         AND u.discord != ''
         AND u.discord LIKE 'discord:%'
         AND p.charinfo IS NOT NULL
         AND JSON_EXTRACT(p.charinfo, '$.firstname') IS NOT NULL
         AND JSON_EXTRACT(p.charinfo, '$.lastname') IS NOT NULL
-      ORDER BY u.discord, p.id ASC
+        AND (p.is_dead IS NULL OR p.is_dead = 0)
+      ORDER BY u.discord, p.last_logged_out DESC
     `;
 
     console.log(`[${getFormattedTime()}] 📊 Executando consulta no banco de dados...`);
@@ -129,11 +139,12 @@ async function updateAllNicknames(onlyNew = false) {
       };
     }
 
-    // Agrupar por discord ID e pegar apenas o personagem com menor ID
+    // Agrupar por discord ID e pegar o personagem vivo que logou por último
     console.log(`[${getFormattedTime()}] 🔄 Agrupando usuários por Discord ID...`);
     const userMap = new Map();
     rows.forEach(row => {
-      if (!userMap.has(row.discord) || row.player_id < userMap.get(row.discord).player_id) {
+      const existing = userMap.get(row.discord);
+      if (!existing || loggedOutMoreRecently(row, existing)) {
         userMap.set(row.discord, row);
       }
     });
@@ -621,14 +632,16 @@ app.post('/api/update-all-nicknames', authenticateRequest, async (req, res) => {
           p.name,
           p.cid,
           p.id as player_id,
+          p.last_logged_out,
           CONCAT('EL', cf.id) as fixed_id
         FROM users u
         LEFT JOIN players p ON u.userId = p.userId
         LEFT JOIN character_fixed_ids cf ON p.citizenid = cf.citizenid
-        WHERE u.discord IS NOT NULL 
+        WHERE u.discord IS NOT NULL
           AND u.discord != ''
           AND p.name IS NOT NULL
-        ORDER BY u.discord, p.id ASC
+          AND (p.is_dead IS NULL OR p.is_dead = 0)
+        ORDER BY u.discord, p.last_logged_out DESC
       `;
 
       console.log(`[${getFormattedTime()}] 📊 Executando consulta no banco de dados...`);
@@ -643,11 +656,12 @@ app.post('/api/update-all-nicknames', authenticateRequest, async (req, res) => {
         });
       }
 
-      // Agrupar por discord ID e pegar apenas o personagem com menor ID
+      // Agrupar por discord ID e pegar o personagem vivo que logou por último
       console.log(`[${getFormattedTime()}] 🔄 Agrupando usuários por Discord ID...`);
       const userMap = new Map();
       rows.forEach(row => {
-        if (!userMap.has(row.discord) || row.player_id < userMap.get(row.discord).player_id) {
+        const existing = userMap.get(row.discord);
+        if (!existing || loggedOutMoreRecently(row, existing)) {
           userMap.set(row.discord, row);
         }
       });
