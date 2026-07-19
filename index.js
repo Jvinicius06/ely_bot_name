@@ -113,7 +113,11 @@ async function updateAllNicknames(onlyNew = false) {
         p.cid,
         p.id as player_id,
         p.last_logged_out,
-        CONCAT('EL', cf.id) as fixed_id
+        CASE
+          WHEN p.citizenid LIKE 'EL%' THEN p.citizenid
+          WHEN cf.id IS NOT NULL THEN CONCAT('EL', cf.id)
+          ELSE NULL
+        END as fixed_id
       FROM users u
       LEFT JOIN players p ON u.userId = p.userId
       LEFT JOIN character_fixed_ids cf ON p.citizenid = cf.citizenid
@@ -633,7 +637,11 @@ app.post('/api/update-all-nicknames', authenticateRequest, async (req, res) => {
           p.cid,
           p.id as player_id,
           p.last_logged_out,
-          CONCAT('EL', cf.id) as fixed_id
+          CASE
+            WHEN p.citizenid LIKE 'EL%' THEN p.citizenid
+            WHEN cf.id IS NOT NULL THEN CONCAT('EL', cf.id)
+            ELSE NULL
+          END as fixed_id
         FROM users u
         LEFT JOIN players p ON u.userId = p.userId
         LEFT JOIN character_fixed_ids cf ON p.citizenid = cf.citizenid
